@@ -121,7 +121,7 @@ pad --print --tab standup
 | `^n` | Next tab |
 | `^p` | Previous tab |
 | `alt+1`…`alt+9` | Jump straight to tab N |
-| `alt+L` / `alt+H` | Move current tab right / left |
+| `^→` / `^←` | Move current tab right / left |
 | `^f` | Find across tabs (title + body) in the workspace |
 | `^o` | Full-screen Markdown preview of the current note |
 | `^b` | Toggle live split preview (source left, rendered right) |
@@ -136,12 +136,14 @@ visible and shows `‹N` / `N›` counters for hidden tabs on each side.
 
 **Live split preview** (`^b`) splits the screen — you keep editing the raw
 Markdown on the left while a [Glamour](https://github.com/charmbracelet/glamour)-rendered
-view updates on the right as you type. `^o` is the full-screen rendered view.
+view updates on the right as you type (the editor stays visible; it isn't hidden).
+`^o` is the full-screen rendered view. Rendering is debounced (~120 ms after you
+stop typing) and the renderer is cached, so typing stays responsive.
 
 > If you run pad inside **tmux**, `^b` is tmux's prefix key — press it twice, or
 > remap tmux's prefix, to reach the split toggle.
 
-Fallback tab-switch keys are also bound: `alt+h`/`alt+l`, `ctrl+←`/`ctrl+→`, `shift+←`/`shift+→`.
+Fallback keys: switch with `alt+h`/`alt+l` or `shift+←`/`shift+→`; move with `alt+H`/`alt+L`.
 
 > **Terminal note:** `^p`/`^n` (plain `ctrl`+letter) are delivered by essentially every terminal. They replace `ctrl+n`/`ctrl+p` line movement inside a note — use the arrow keys for that. `ctrl`-arrows are also bound but some terminals grab them for pane navigation.
 

@@ -36,6 +36,7 @@ type tab struct {
 
 type autosaveMsg time.Time
 type statusTickMsg time.Time
+type splitRenderMsg int // carries the seq it was scheduled for, to coalesce
 
 // statusTTL is how long a transient status message stays visible.
 const statusTTL = 3 * time.Second
@@ -62,6 +63,8 @@ type model struct {
 	splitVP      viewport.Model
 	splitRender  *glamour.TermRenderer
 	splitRenderW int
+	splitDirty   bool
+	splitSeq     int
 
 	width, height int
 	status        string
@@ -226,10 +229,7 @@ func (m *model) openPreview() {
 		w = 20
 	}
 	out := body
-	if r, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(w),
-	); err == nil {
+	if r := m.renderer(w); r != nil {
 		if rendered, err := r.Render(body); err == nil {
 			out = rendered
 		}
@@ -265,31 +265,46 @@ func (m model) splitPaneWidth() int {
 	return w
 }
 
-// refreshSplit re-renders the current buffer as markdown into the split pane.
-func (m *model) refreshSplit() {
-	if !m.splitPreview {
-		return
-	}
-	w := m.splitPaneWidth()
+// renderer returns a Glamour renderer for width w, cached across calls so the
+// (expensive) construction happens once per width rather than per keystroke.
+func (m *model) renderer(w int) *glamour.TermRenderer {
 	if m.splitRender == nil || m.splitRenderW != w {
 		if r, err := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithWordWrap(w)); err == nil {
 			m.splitRender = r
 			m.splitRenderW = w
 		}
 	}
+	return m.splitRender
+}
+
+// refreshSplit re-renders the current buffer as markdown into the split pane.
+// Heavy (Glamour) — call only on toggle/resize/tab-switch and debounced idle,
+// never directly on a keystroke.
+func (m *model) refreshSplit() {
+	if !m.splitPreview {
+		return
+	}
+	w := m.splitPaneWidth()
 	body := m.ta.Value()
 	if strings.TrimSpace(body) == "" {
 		body = "*(empty — type markdown on the left)*"
 	}
 	out := body
-	if m.splitRender != nil {
-		if s, err := m.splitRender.Render(body); err == nil {
+	if r := m.renderer(w); r != nil {
+		if s, err := r.Render(body); err == nil {
 			out = s
 		}
 	}
 	m.splitVP.Width = w
 	m.splitVP.Height = m.height - 4
 	m.splitVP.SetContent(out)
+	m.splitDirty = false
+}
+
+// scheduleSplitRender debounces: a render fires ~120ms after the last keystroke,
+// coalescing bursts of typing into a single Glamour pass.
+func scheduleSplitRender(seq int) tea.Cmd {
+	return tea.Tick(120*time.Millisecond, func(time.Time) tea.Msg { return splitRenderMsg(seq) })
 }
 
 // autosaveInterval is set from config; 0 disables periodic autosave.
@@ -335,6 +350,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.setStatus("")
 		}
 		return m, statusTick()
+
+	case splitRenderMsg:
+		// only render for the latest scheduled seq (coalesce typing bursts)
+		if int(msg) == m.splitSeq && m.splitDirty && m.splitPreview {
+			m.refreshSplit()
+		}
+		return m, nil
 
 	case tea.KeyMsg:
 		switch m.mode {
@@ -384,17 +406,17 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+d", "ctrl+w":
 		m.mode = modeConfirmDelete
 		return m, nil
-	case "ctrl+n", "ctrl+>", "ctrl+right", "alt+l", "shift+right":
+	case "ctrl+n", "ctrl+>", "alt+l", "shift+right":
 		m.switchTab(1)
 		return m, nil
-	case "ctrl+p", "ctrl+<", "ctrl+left", "alt+h", "shift+left":
+	case "ctrl+p", "ctrl+<", "alt+h", "shift+left":
 		m.switchTab(-1)
 		return m, nil
-	case "alt+L", "alt+shift+l":
+	case "ctrl+right", "alt+L", "alt+shift+l":
 		m.moveTab(1)
 		m.setStatus("moved tab")
 		return m, nil
-	case "alt+H", "alt+shift+h":
+	case "ctrl+left", "alt+H", "alt+shift+h":
 		m.moveTab(-1)
 		m.setStatus("moved tab")
 		return m, nil
@@ -445,7 +467,12 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	m.ta, cmd = m.ta.Update(msg)
-	m.refreshSplit()
+	if m.splitPreview {
+		// debounce: mark dirty and schedule a single render after a pause
+		m.splitDirty = true
+		m.splitSeq++
+		return m, tea.Batch(cmd, scheduleSplitRender(m.splitSeq))
+	}
 	return m, cmd
 }
 

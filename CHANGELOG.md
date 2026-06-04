@@ -19,7 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Move tab is now `^→` / `^←` (was `alt+H`/`alt+L`, which is unreliable on macOS);
+  the alt chords stay as fallbacks.
 - Help overlay key is now `^/` (was `^g`); `F1` still works.
+
+### Fixed
+
+- Split/preview were slow because Glamour re-rendered (and rebuilt its renderer)
+  on every keystroke. Rendering is now debounced and the renderer cached.
 - Transient status messages (e.g. "saved", "moved tab") auto-clear after a few seconds.
 
 ## [0.1.0] - 2026-06-04

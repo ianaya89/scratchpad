@@ -123,7 +123,7 @@ func (m model) tabBar() string {
 
 func (m model) footer() string {
 	help := footerStyle.Render(
-		"^t new · ^d del · ^p/^n prev/next · ⌥H/⌥L move · ^f find · ^o preview · ^b split · ^e ws · ^/ help · ^q quit",
+		"^t new · ^d del · ^p/^n prev/next · ^←/^→ move · ^f find · ^o preview · ^b split · ^e ws · ^/ help · ^q quit",
 	)
 	if m.status != "" {
 		return lipgloss.JoinHorizontal(lipgloss.Top, statusStyle.Render(m.status), "  ", help)
@@ -161,7 +161,7 @@ func (m model) helpView() string {
 		{"^d / ^w", "delete note (confirm)"},
 		{"^p / ^n", "previous / next tab"},
 		{"alt+1..9", "jump to tab N"},
-		{"alt+H / alt+L", "move tab left / right"},
+		{"^← / ^→", "move tab left / right"},
 		{"^f", "find in workspace"},
 		{"^o", "markdown preview (full)"},
 		{"^b", "live split preview"},
@@ -179,7 +179,7 @@ func (m model) helpView() string {
 		b.WriteString(fmt.Sprintf("%s  %s\n", keyStyle.Render(fmt.Sprintf("%-14s", r[0])), r[1]))
 	}
 	b.WriteString("\n")
-	b.WriteString(footerStyle.Render("fallback switch: alt+h/l, ^←/^→, shift+←/→ · any key closes"))
+	b.WriteString(footerStyle.Render("switch fallback: alt+h/l, shift+←/→ · move fallback: alt+H/L · any key closes"))
 	box := overlayStyle.Width(48).Render(b.String())
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
 }
