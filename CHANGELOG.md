@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Split/preview were slow because Glamour re-rendered (and rebuilt its renderer)
   on every keystroke. Rendering is now debounced and the renderer cached.
+- Dropped Glamour's `WithAutoStyle` terminal background query (a synchronous OSC
+  call that could stall); the preview theme is now fixed (`dark`) and overridable
+  via `PAD_THEME`.
 - Transient status messages (e.g. "saved", "moved tab") auto-clear after a few seconds.
 
 ## [0.1.0] - 2026-06-04

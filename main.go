@@ -269,7 +269,9 @@ func (m model) splitPaneWidth() int {
 // (expensive) construction happens once per width rather than per keystroke.
 func (m *model) renderer(w int) *glamour.TermRenderer {
 	if m.splitRender == nil || m.splitRenderW != w {
-		if r, err := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithWordWrap(w)); err == nil {
+		// WithStandardStyle avoids WithAutoStyle's synchronous OSC background
+		// query, which can stall for hundreds of ms in some terminals.
+		if r, err := glamour.NewTermRenderer(glamour.WithStandardStyle(glamourStyle), glamour.WithWordWrap(w)); err == nil {
 			m.splitRender = r
 			m.splitRenderW = w
 		}
@@ -611,6 +613,10 @@ func (m *model) layoutTextarea() {
 
 var version = "dev"
 
+// glamourStyle is the preview/split markdown theme. Override with PAD_THEME
+// (glamour standard styles: dark, light, dracula, tokyo-night, pink, notty…).
+var glamourStyle = "dark"
+
 // runPrint dumps a workspace's notes to stdout (no TUI). With tabFilter set,
 // only notes whose title contains the filter (case-insensitive) are printed.
 func runPrint(ws, tabFilter string) {
@@ -695,6 +701,9 @@ func main() {
 	}
 	dataRoot = cfg.dataDir
 	autosaveInterval = cfg.autosave
+	if t := os.Getenv("PAD_THEME"); t != "" {
+		glamourStyle = t
+	}
 
 	switch {
 	case cfg.print:

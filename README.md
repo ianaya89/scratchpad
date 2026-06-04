@@ -157,6 +157,7 @@ Everything resolves with the precedence **flag → environment variable → conf
 | `--workspace NAME` (or positional arg) | `PAD_WORKSPACE` | `default` | Workspace to open. |
 | `--autosave N` | `PAD_AUTOSAVE` | `3` | Autosave interval in seconds (accepts `5` or `5s`). `0` disables periodic autosave. |
 | `--config PATH` | `PAD_CONFIG` | `$XDG_CONFIG_HOME/pad/config.toml` | Config file location. |
+| — | `PAD_THEME` | `dark` | Markdown preview theme (`dark`, `light`, `dracula`, `tokyo-night`, `pink`, `notty`…). |
 | `--print` / `--tab TITLE` | — | — | Dump notes to stdout and exit (no TUI). |
 | `--new TITLE` / `--append TITLE` / `--content TEXT` | — | — | Create or append to a note from CLI/stdin and exit (no TUI). |
 | `--version` | — | — | Print version and exit. |
