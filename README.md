@@ -34,6 +34,12 @@ Use them however you like: one per project, one per context (`work`, `personal`,
 
 ## Install
 
+**Homebrew** (macOS):
+
+```sh
+brew install ianaya89/tap/pad
+```
+
 **Prebuilt binary** — grab a tarball for your OS/arch from the [releases page](https://github.com/ianaya89/scratchpad/releases), extract, and put `pad` on your `PATH`.
 
 **From source** (requires Go 1.26+):
@@ -153,7 +159,8 @@ CI (build, vet, gofmt, race tests) runs on every push and PR.
 ### Releasing
 
 Tag and push; the release workflow runs [GoReleaser](https://goreleaser.com) to
-build cross-platform binaries and publish a GitHub release:
+build cross-platform binaries, publish a GitHub release, and update the Homebrew
+cask in [`ianaya89/homebrew-tap`](https://github.com/ianaya89/homebrew-tap):
 
 ```sh
 git tag v0.1.0
@@ -161,6 +168,17 @@ git push origin v0.1.0
 ```
 
 The binary's `--version` is stamped from the tag.
+
+**One-time setup for the Homebrew step** — the default `GITHUB_TOKEN` can't write
+to the tap repo, so add a Personal Access Token with write access to it:
+
+```sh
+# create a fine-grained PAT with "Contents: read & write" on ianaya89/homebrew-tap,
+# then store it as a secret on this repo:
+gh secret set HOMEBREW_TAP_TOKEN --repo ianaya89/scratchpad
+```
+
+Without that secret the release still succeeds, but the cask update step fails.
 
 ## License
 
