@@ -167,7 +167,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The binary's `--version` is stamped from the tag.
+The binary's `--version` is stamped from the tag. Update [`CHANGELOG.md`](CHANGELOG.md) before tagging a release.
 
 **One-time setup for the Homebrew step** — the default `GITHUB_TOKEN` can't write
 to the tap repo, so add a Personal Access Token with write access to it:
