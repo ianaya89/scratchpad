@@ -1,5 +1,10 @@
 # pad
 
+[![CI](https://github.com/ianaya89/scratchpad/actions/workflows/ci.yml/badge.svg)](https://github.com/ianaya89/scratchpad/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ianaya89/scratchpad?sort=semver)](https://github.com/ianaya89/scratchpad/releases)
+![Go](https://img.shields.io/github/go-mod/go-version/ianaya89/scratchpad)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A tabbed terminal scratchpad. Each **tab** is a quick note; each **workspace** is a named set of tabs. Built with Go + [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
 ![demo](demo.gif)
@@ -29,13 +34,18 @@ Use them however you like: one per project, one per context (`work`, `personal`,
 
 ## Install
 
-Requires Go 1.26+.
+**Prebuilt binary** — grab a tarball for your OS/arch from the [releases page](https://github.com/ianaya89/scratchpad/releases), extract, and put `pad` on your `PATH`.
+
+**From source** (requires Go 1.26+):
 
 ```sh
 git clone https://github.com/ianaya89/scratchpad ~/pad
 cd ~/pad
-go build -o ~/.local/bin/pad .   # ensure ~/.local/bin is on PATH
+make install          # builds with version info into ~/.local/bin/pad
+# or: go build -o ~/.local/bin/pad .
 ```
+
+Ensure `~/.local/bin` is on your `PATH` (or set `PREFIX=/usr/local make install`).
 
 > If your Go toolchain can't reach the checksum database (sandboxed/offline), prefix builds with `GOSUMDB=off`.
 
@@ -131,10 +141,26 @@ pad/
 ## Development
 
 ```sh
-go build -o ~/.local/bin/pad .
-go test ./...
-go vet ./...
+make build      # build ./pad with version stamped from git
+make install    # build into $PREFIX/bin (default ~/.local)
+make test       # go test ./...
+make check      # fmt + vet + test
+make demo       # re-render demo.gif (needs vhs)
 ```
+
+CI (build, vet, gofmt, race tests) runs on every push and PR.
+
+### Releasing
+
+Tag and push; the release workflow runs [GoReleaser](https://goreleaser.com) to
+build cross-platform binaries and publish a GitHub release:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The binary's `--version` is stamped from the tag.
 
 ## License
 

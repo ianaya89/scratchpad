@@ -1,0 +1,58 @@
+version: 2
+project_name: pad
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: pad
+    binary: pad
+    main: .
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: pad
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+
+release:
+  draft: false
+  prerelease: auto
+
+# To publish a Homebrew formula on release, create a tap repo
+# (github.com/ianaya89/homebrew-tap) and uncomment:
+#
+# brews:
+#   - name: pad
+#     repository:
+#       owner: ianaya89
+#       name: homebrew-tap
+#     homepage: https://github.com/ianaya89/scratchpad
+#     description: Tabbed terminal scratchpad
+#     license: MIT

@@ -4,5 +4,7 @@ pad
 # go
 *.test
 *.out
+# goreleaser
+/dist/
 # os
 .DS_Store
