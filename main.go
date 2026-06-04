@@ -34,6 +34,10 @@ type tab struct {
 }
 
 type autosaveMsg time.Time
+type statusTickMsg time.Time
+
+// statusTTL is how long a transient status message stays visible.
+const statusTTL = 3 * time.Second
 
 type model struct {
 	ws     string
@@ -55,11 +59,12 @@ type model struct {
 
 	width, height int
 	status        string
+	statusAt      time.Time
 }
 
 func newModel(ws string) model {
 	ta := textarea.New()
-	ta.Placeholder = "scratch here…"
+	ta.Placeholder = "Start typing…  (^g help · ^t new tab · ^f find · ^o preview · ^q quit)"
 	ta.ShowLineNumbers = false
 	ta.CharLimit = 0
 	ta.Focus()
@@ -246,8 +251,18 @@ func autosaveTick() tea.Cmd {
 	return tea.Tick(autosaveInterval, func(t time.Time) tea.Msg { return autosaveMsg(t) })
 }
 
+// setStatus shows a transient message that auto-clears after statusTTL.
+func (m *model) setStatus(s string) {
+	m.status = s
+	m.statusAt = time.Now()
+}
+
+func statusTick() tea.Cmd {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg { return statusTickMsg(t) })
+}
+
 func (m model) Init() tea.Cmd {
-	return tea.Batch(textarea.Blink, autosaveTick())
+	return tea.Batch(textarea.Blink, autosaveTick(), statusTick())
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -262,6 +277,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.saveActive()
 		}
 		return m, autosaveTick()
+
+	case statusTickMsg:
+		if m.status != "" && time.Since(m.statusAt) >= statusTTL {
+			m.setStatus("")
+		}
+		return m, statusTick()
 
 	case tea.KeyMsg:
 		switch m.mode {
@@ -297,7 +318,7 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.saveActive()
 		m.createTab("untitled")
 		m.syncToTextarea()
-		m.status = "new tab"
+		m.setStatus("new tab")
 		return m, nil
 	case "ctrl+d", "ctrl+w":
 		m.mode = modeConfirmDelete
@@ -310,11 +331,11 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "alt+L", "alt+shift+l":
 		m.moveTab(1)
-		m.status = "moved tab"
+		m.setStatus("moved tab")
 		return m, nil
 	case "alt+H", "alt+shift+h":
 		m.moveTab(-1)
-		m.status = "moved tab"
+		m.setStatus("moved tab")
 		return m, nil
 	case "ctrl+f":
 		m.searchPick = 0
@@ -331,7 +352,7 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "ctrl+s":
 		m.saveAll()
-		m.status = "saved"
+		m.setStatus("saved")
 		return m, nil
 	case "ctrl+r":
 		m.mode = modeRename
@@ -361,7 +382,7 @@ func (m model) updateConfirmDelete(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "y", "Y", "enter":
 		m.closeTab()
 		m.mode = modeEdit
-		m.status = "deleted note"
+		m.setStatus("deleted note")
 		return m, nil
 	default:
 		m.mode = modeEdit
@@ -427,13 +448,13 @@ func (m model) updateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					t.file = newPath
 				}
 				t.title = val
-				m.status = "renamed"
+				m.setStatus("renamed")
 			case modeNewWorkspace:
 				m.saveAll()
 				m.ws = slug(val)
 				m.active = 0
 				m.reload()
-				m.status = "workspace: " + m.ws
+				m.setStatus("workspace: " + m.ws)
 			}
 		}
 		m.mode = modeEdit
@@ -469,7 +490,7 @@ func (m model) updatePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.ws = m.wsList[m.wsPick]
 			m.active = 0
 			m.reload()
-			m.status = "workspace: " + m.ws
+			m.setStatus("workspace: " + m.ws)
 		}
 		m.mode = modeEdit
 		return m, nil

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Empty-note placeholder now hints the core keybindings (`^g`/`^t`/`^f`/`^o`/`^q`).
+
+### Changed
+
+- Transient status messages (e.g. "saved", "moved tab") auto-clear after a few seconds.
+
 ## [0.1.0] - 2026-06-04
 
 First public release.
