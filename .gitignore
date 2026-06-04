@@ -1,0 +1,8 @@
+# compiled binary
+/pad
+pad
+# go
+*.test
+*.out
+# os
+.DS_Store
