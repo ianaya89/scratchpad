@@ -1,10 +1,45 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 )
+
+func TestConfigFileLayering(t *testing.T) {
+	cfgDir := t.TempDir()
+	cfgPath := filepath.Join(cfgDir, "config.toml")
+	os.WriteFile(cfgPath, []byte("dir = \"/tmp/from-file\"\nworkspace = \"filews\"\nautosave = 9\n"), 0o644)
+
+	// clear envs that could interfere
+	t.Setenv("PAD_DIR", "")
+	t.Setenv("PAD_WORKSPACE", "")
+	t.Setenv("PAD_AUTOSAVE", "")
+	t.Setenv("PAD_CONFIG", cfgPath)
+
+	// file only
+	c, _ := loadConfig(nil)
+	if c.dataDir != "/tmp/from-file" || c.workspace != "filews" {
+		t.Errorf("file layer: dir=%q ws=%q", c.dataDir, c.workspace)
+	}
+	if c.autosave.Seconds() != 9 {
+		t.Errorf("file autosave = %v", c.autosave)
+	}
+
+	// env overrides file
+	t.Setenv("PAD_WORKSPACE", "envws")
+	c, _ = loadConfig(nil)
+	if c.workspace != "envws" {
+		t.Errorf("env should override file, got %q", c.workspace)
+	}
+
+	// flag overrides env + file
+	c, _ = loadConfig([]string{"--workspace", "flagws"})
+	if c.workspace != "flagws" {
+		t.Errorf("flag should win, got %q", c.workspace)
+	}
+}
 
 func TestLoadConfigPrecedence(t *testing.T) {
 	t.Setenv("PAD_DIR", "/tmp/env-dir")

@@ -2,8 +2,34 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
+
+func TestSetPrefix(t *testing.T) {
+	got := setPrefix("/x/3-hello-world.md", 7)
+	if got != "/x/7-hello-world.md" {
+		t.Errorf("setPrefix = %q", got)
+	}
+}
+
+func TestAtomicWriteNoTmpLeak(t *testing.T) {
+	dataRoot = t.TempDir()
+	ws := "atomic"
+	dir := workspaceDir(ws)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeNote(filepath.Join(dir, "1-note.md"), "hello"); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		if filepath.Ext(e.Name()) == ".tmp" {
+			t.Errorf("leftover temp file: %s", e.Name())
+		}
+	}
+}
 
 func TestStoreRoundtrip(t *testing.T) {
 	ws := "__smoke_test"

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -9,6 +11,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+// shared test helpers
 
 func upd(m model, msg tea.Msg) model {
 	nm, _ := m.Update(msg)
@@ -25,6 +29,19 @@ func newTestModel(t *testing.T, ws string) model {
 	m.width, m.height = 80, 24
 	m.layoutTextarea()
 	return m
+}
+
+func seedWorkspace(t *testing.T, ws string, notes map[string]string) {
+	t.Helper()
+	dir := workspaceDir(ws)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range notes {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func TestKeyNewTab(t *testing.T) {
@@ -205,27 +222,6 @@ func TestTabBarOverflowFits(t *testing.T) {
 	}
 	if !strings.Contains(bar, "›") && !strings.Contains(bar, "‹") {
 		t.Error("expected an overflow indicator with 20 tabs in width 40")
-	}
-}
-
-func TestRunNewAndAppend(t *testing.T) {
-	dataRoot = t.TempDir()
-	ws := "cli"
-
-	runNew(ws, "Hello World", "body")
-	notes, _ := loadNotes(ws)
-	if len(notes) != 1 || readNote(notes[0].file) != "body" {
-		t.Fatalf("runNew: notes=%d content=%q", len(notes), readNote(notes[0].file))
-	}
-
-	runAppend(ws, "hello", "more") // matches by slug
-	if got := readNote(notes[0].file); got != "body\nmore\n" {
-		t.Errorf("after append = %q, want \"body\\nmore\\n\"", got)
-	}
-
-	runAppend(ws, "does-not-exist", "z") // creates
-	if notes, _ := loadNotes(ws); len(notes) != 2 {
-		t.Errorf("append-missing should create: notes=%d", len(notes))
 	}
 }
 
