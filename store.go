@@ -9,10 +9,15 @@ import (
 	"strings"
 )
 
-// root is ~/.nb/scratchpad — its own dir, separate from the nb notebook.
+// dataRoot is the resolved storage directory, set once at startup by config.
+// Falls back to the default if config never ran (e.g. in tests).
+var dataRoot string
+
 func rootDir() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".nb", "scratchpad")
+	if dataRoot == "" {
+		dataRoot = defaultDataDir()
+	}
+	return dataRoot
 }
 
 func workspaceDir(ws string) string {

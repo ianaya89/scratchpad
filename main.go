@@ -149,8 +149,14 @@ func (m *model) closeTab() {
 	m.syncToTextarea()
 }
 
+// autosaveInterval is set from config; 0 disables periodic autosave.
+var autosaveInterval = defaultAutosave
+
 func autosaveTick() tea.Cmd {
-	return tea.Tick(3*time.Second, func(t time.Time) tea.Msg { return autosaveMsg(t) })
+	if autosaveInterval <= 0 {
+		return nil
+	}
+	return tea.Tick(autosaveInterval, func(t time.Time) tea.Msg { return autosaveMsg(t) })
 }
 
 func (m model) Init() tea.Cmd {
@@ -323,12 +329,17 @@ func (m *model) layoutTextarea() {
 	m.ta.SetHeight(m.height - 4) // tab bar + footer
 }
 
+var version = "dev"
+
 func main() {
-	ws := "default"
-	if len(os.Args) > 1 {
-		ws = slug(os.Args[1])
+	cfg, ok := loadConfig(os.Args[1:])
+	if !ok {
+		return
 	}
-	p := tea.NewProgram(newModel(ws), tea.WithAltScreen())
+	dataRoot = cfg.dataDir
+	autosaveInterval = cfg.autosave
+
+	p := tea.NewProgram(newModel(cfg.workspace), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
