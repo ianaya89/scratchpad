@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -18,14 +19,23 @@ type config struct {
 	dataDir   string
 	workspace string
 	autosave  time.Duration
+
+	// non-TUI actions
+	print bool
+	tab   string
 }
 
-// defaultDataDir resolves the storage dir when nothing overrides it:
-// $PAD_DIR, else $XDG_DATA_HOME/pad, else ~/.local/share/pad.
+// defaultDataDir is the fallback used when nothing overrides storage,
+// including the PAD_DIR env (used by store.go when config never ran, e.g. tests).
 func defaultDataDir() string {
 	if d := os.Getenv("PAD_DIR"); d != "" {
 		return expandHome(d)
 	}
+	return defaultDataDirBase()
+}
+
+// defaultDataDirBase is the platform default location, ignoring PAD_DIR.
+func defaultDataDirBase() string {
 	if x := os.Getenv("XDG_DATA_HOME"); x != "" {
 		return filepath.Join(x, "pad")
 	}
@@ -45,16 +55,18 @@ func expandHome(p string) string {
 	return abs
 }
 
-// loadConfig resolves config from flags > env > defaults and parses argv.
+// loadConfig resolves config with precedence flag > env > config file > default.
 // Returns ok=false when the program should exit early (e.g. --help, --version).
 func loadConfig(args []string) (config, bool) {
 	fs := flag.NewFlagSet("pad", flag.ContinueOnError)
 	fs.Usage = usage
 
-	dir := fs.String("dir", "", "data directory (default $PAD_DIR, $XDG_DATA_HOME/pad, or ~/.local/share/pad)")
-	ws := fs.String("workspace", "", "workspace to open (default $PAD_WORKSPACE or \"default\")")
-	autosave := fs.Int("autosave", 0, "autosave interval in seconds (default $PAD_AUTOSAVE or 3; 0 disables)")
-	autosaveSet := false
+	dir := fs.String("dir", "", "data directory")
+	ws := fs.String("workspace", "", "workspace to open")
+	autosave := fs.Int("autosave", -1, "autosave interval in seconds (0 disables)")
+	cfgPath := fs.String("config", "", "path to config file")
+	doPrint := fs.Bool("print", false, "print note(s) to stdout and exit (no TUI)")
+	tab := fs.String("tab", "", "with --print: only this tab (title substring)")
 	showVersion := fs.Bool("version", false, "print version and exit")
 
 	if err := fs.Parse(args); err != nil {
@@ -64,38 +76,112 @@ func loadConfig(args []string) (config, bool) {
 		fmt.Println("pad", version)
 		return config{}, false
 	}
-	fs.Visit(func(f *flag.Flag) {
-		if f.Name == "autosave" {
-			autosaveSet = true
-		}
-	})
 
+	// base defaults
 	c := config{
-		dataDir:   defaultDataDir(),
-		workspace: envOr("PAD_WORKSPACE", defaultWorkspace),
-		autosave:  envDuration("PAD_AUTOSAVE", defaultAutosave),
+		dataDir:   defaultDataDirBase(),
+		workspace: defaultWorkspace,
+		autosave:  defaultAutosave,
 	}
+
+	// config-file layer
+	fc := readConfigFile(resolveConfigPath(*cfgPath))
+	if fc.dir != "" {
+		c.dataDir = expandHome(fc.dir)
+	}
+	if fc.workspace != "" {
+		c.workspace = fc.workspace
+	}
+	if fc.autosave >= 0 {
+		c.autosave = time.Duration(fc.autosave) * time.Second
+	}
+
+	// env layer
+	if v := os.Getenv("PAD_DIR"); v != "" {
+		c.dataDir = expandHome(v)
+	}
+	if v := os.Getenv("PAD_WORKSPACE"); v != "" {
+		c.workspace = v
+	}
+	if os.Getenv("PAD_AUTOSAVE") != "" {
+		c.autosave = envDuration("PAD_AUTOSAVE", c.autosave)
+	}
+
+	// flag layer
 	if *dir != "" {
 		c.dataDir = expandHome(*dir)
 	}
 	if *ws != "" {
 		c.workspace = *ws
 	}
+	if *autosave >= 0 {
+		c.autosave = time.Duration(*autosave) * time.Second
+	}
 	if positional := fs.Arg(0); positional != "" {
 		c.workspace = positional
 	}
-	if autosaveSet {
-		c.autosave = time.Duration(*autosave) * time.Second
-	}
+
+	c.print = *doPrint
+	c.tab = *tab
 	c.workspace = slug(c.workspace)
 	return c, true
 }
 
-func envOr(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
+type fileCfg struct {
+	dir       string
+	workspace string
+	autosave  int
+}
+
+// readConfigFile parses a minimal TOML-ish file: `key = value` lines,
+// `#` comments, optional quotes. Recognized keys: dir, workspace, autosave.
+func readConfigFile(path string) fileCfg {
+	fc := fileCfg{autosave: -1}
+	if path == "" {
+		return fc
 	}
-	return def
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return fc
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		k, v, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		k = strings.TrimSpace(k)
+		v = strings.Trim(strings.TrimSpace(v), "\"'")
+		switch k {
+		case "dir":
+			fc.dir = v
+		case "workspace":
+			fc.workspace = v
+		case "autosave":
+			if n, err := strconv.Atoi(v); err == nil {
+				fc.autosave = n
+			}
+		}
+	}
+	return fc
+}
+
+func resolveConfigPath(flagPath string) string {
+	if flagPath != "" {
+		return expandHome(flagPath)
+	}
+	if e := os.Getenv("PAD_CONFIG"); e != "" {
+		return expandHome(e)
+	}
+	base := os.Getenv("XDG_CONFIG_HOME")
+	if base == "" {
+		home, _ := os.UserHomeDir()
+		base = filepath.Join(home, ".config")
+	}
+	return filepath.Join(base, "pad", "config.toml")
 }
 
 func envDuration(key string, def time.Duration) time.Duration {
@@ -120,17 +206,27 @@ Usage:
   pad [flags] [workspace]
 
 Examples:
-  pad                 open the default workspace
-  pad ideas           open/create the "ideas" workspace
-  pad --dir ~/notes   store notes under ~/notes
+  pad                  open the default workspace
+  pad ideas            open/create the "ideas" workspace
+  pad --dir ~/notes    store notes under ~/notes
+  pad --print          dump the workspace's notes to stdout
+  pad --print --tab todo
 
 Flags:
-  --dir PATH          data directory
-                      (default $PAD_DIR, $XDG_DATA_HOME/pad, or ~/.local/share/pad)
-  --workspace NAME    workspace to open (default $PAD_WORKSPACE or "default")
-  --autosave N        autosave interval in seconds (default $PAD_AUTOSAVE or 3; 0 disables)
-  --version           print version and exit
-  -h, --help          show this help
+  --dir PATH           data directory
+                       (default $PAD_DIR, $XDG_DATA_HOME/pad, or ~/.local/share/pad)
+  --workspace NAME     workspace to open (default $PAD_WORKSPACE or "default")
+  --autosave N         autosave interval in seconds (default $PAD_AUTOSAVE or 3; 0 disables)
+  --config PATH        config file (default $PAD_CONFIG or ~/.config/pad/config.toml)
+  --print              print note(s) to stdout and exit (no TUI)
+  --tab TITLE          with --print, restrict to tabs matching TITLE
+  --version            print version and exit
+  -h, --help           show this help
+
+Config file (TOML-ish, key = value):
+  dir = "~/notes"
+  workspace = "work"
+  autosave = 5
 
 Data layout:
   <dir>/<workspace>/NN-slug.md   one Markdown file per tab

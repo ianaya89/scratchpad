@@ -45,6 +45,12 @@ func (m model) View() string {
 			title = m.tabs[m.active].title
 		}
 		return m.overlay("Delete note", "“"+title+"” — permanently?", "y delete · any other key cancel")
+	case modeSearch:
+		return m.searchView()
+	case modeHelp:
+		return m.helpView()
+	case modePreview:
+		return m.preview.View()
 	}
 
 	tabBar := m.tabBar()
@@ -73,12 +79,63 @@ func (m model) tabBar() string {
 
 func (m model) footer() string {
 	help := footerStyle.Render(
-		"^t new · ^d delete · ^{/^} prev/next · ^r rename · ^e workspace · ^s save · ^q quit",
+		"^t new · ^d del · ^</^> switch · ⌥H/⌥L move · ^f find · ^o preview · ^e ws · ^g help · ^q quit",
 	)
 	if m.status != "" {
 		return lipgloss.JoinHorizontal(lipgloss.Top, statusStyle.Render(m.status), "  ", help)
 	}
 	return help
+}
+
+func (m model) searchView() string {
+	var b strings.Builder
+	b.WriteString(lipgloss.NewStyle().Bold(true).Render("Find in workspace"))
+	b.WriteString("\n")
+	b.WriteString(m.input.View())
+	b.WriteString("\n\n")
+	if len(m.searchResults) == 0 {
+		b.WriteString(footerStyle.Render("(no matches)"))
+	}
+	for i, idx := range m.searchResults {
+		cursor := "  "
+		line := tabStyle.Render(m.tabs[idx].title)
+		if i == m.searchPick {
+			cursor = "› "
+			line = activeTabStyle.Render(m.tabs[idx].title)
+		}
+		b.WriteString(cursor + line + "\n")
+	}
+	b.WriteString("\n")
+	b.WriteString(footerStyle.Render("type to filter · ↑/↓ select · enter open · esc cancel"))
+	box := overlayStyle.Width(48).Render(b.String())
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
+}
+
+func (m model) helpView() string {
+	rows := [][2]string{
+		{"^t", "new tab"},
+		{"^d / ^w", "delete note (confirm)"},
+		{"^< / ^>", "previous / next tab"},
+		{"alt+H / alt+L", "move tab left / right"},
+		{"^f", "find in workspace"},
+		{"^o", "markdown preview"},
+		{"^r", "rename tab"},
+		{"^e", "switch / new workspace"},
+		{"^g / F1", "this help"},
+		{"^s", "save now"},
+		{"^q / ^c", "save & quit"},
+	}
+	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
+	var b strings.Builder
+	b.WriteString(lipgloss.NewStyle().Bold(true).Render("pad — keys"))
+	b.WriteString("\n\n")
+	for _, r := range rows {
+		b.WriteString(fmt.Sprintf("%s  %s\n", keyStyle.Render(fmt.Sprintf("%-14s", r[0])), r[1]))
+	}
+	b.WriteString("\n")
+	b.WriteString(footerStyle.Render("fallback switch: alt+h/l, ^←/^→, shift+←/→ · any key closes"))
+	box := overlayStyle.Width(48).Render(b.String())
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
 }
 
 func (m model) overlay(title, body, hint string) string {

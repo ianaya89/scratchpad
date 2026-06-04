@@ -2,7 +2,11 @@
 
 A tabbed terminal scratchpad. Each **tab** is a quick note; each **workspace** is a named set of tabs. Built with Go + [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 
+![demo](demo.gif)
+
 Notes are plain Markdown files on disk, so they stay greppable and editable by hand. By default they live under your XDG data dir — but the storage location and other behavior are fully configurable (see [Configuration](#configuration)).
+
+**Features:** tabbed notes · named workspaces · fuzzy find across tabs (`^f`) · live Markdown preview (`^o`) · reorder tabs · atomic saves · plain-Markdown storage · `--print` for scripting · config via flags, env, or file.
 
 ## What is a "workspace"?
 
@@ -41,6 +45,8 @@ go build -o ~/.local/bin/pad .   # ensure ~/.local/bin is on PATH
 pad                  # open the "default" workspace
 pad ideas            # open/create the "ideas" workspace
 pad --dir ~/notes    # store notes under ~/notes instead of the default
+pad --print          # dump the workspace's notes to stdout (no TUI)
+pad --print --tab todo
 pad --help           # full flag reference
 ```
 
@@ -50,27 +56,43 @@ pad --help           # full flag reference
 | --- | --- |
 | `^t` | New tab |
 | `^d` (or `^w`) | Delete current note (asks to confirm) |
-| `^}` | Next tab |
-| `^{` | Previous tab |
+| `^>` | Next tab |
+| `^<` | Previous tab |
+| `alt+L` / `alt+H` | Move current tab right / left |
+| `^f` | Find across tabs (title + body) in the workspace |
+| `^o` | Markdown preview of the current note |
 | `^r` | Rename current tab |
 | `^e` | Workspace picker (switch, or `n` to create new) |
+| `^g` (or `F1`) | Help overlay |
 | `^s` | Save now |
 | `^q` (or `^c`) | Save everything and quit |
 
-Fallback tab-switch keys are also bound in case your terminal grabs `ctrl+{`/`ctrl+}`: `ctrl+←`/`ctrl+→`, `alt+h`/`alt+l`, `shift+←`/`shift+→`.
+Fallback tab-switch keys are also bound in case your terminal doesn't deliver `^<`/`^>`: `alt+h`/`alt+l`, `ctrl+←`/`ctrl+→`, `shift+←`/`shift+→`.
 
-> **Terminal note:** `ctrl+{` is `ctrl+shift+[`. A few terminals send `esc` for `ctrl+[` or don't deliver these chords distinctly. If `^{`/`^}` don't move tabs in your terminal, use one of the fallback chords above.
+> **Terminal note:** `^<`/`^>` are `ctrl+shift+,`/`ctrl+shift+.`. Some terminals don't emit these (or `ctrl`-arrows, which they may bind to pane navigation) as distinct chords. If switching tabs doesn't work, use `alt+h`/`alt+l` — the most broadly reliable.
 
 ## Configuration
 
-Everything resolves with the precedence **flag → environment variable → default**.
+Everything resolves with the precedence **flag → environment variable → config file → default**.
 
 | Flag | Env var | Default | Description |
 | --- | --- | --- | --- |
 | `--dir PATH` | `PAD_DIR` | `$XDG_DATA_HOME/pad`, else `~/.local/share/pad` | Where notes are stored. `~` is expanded. |
 | `--workspace NAME` (or positional arg) | `PAD_WORKSPACE` | `default` | Workspace to open. |
 | `--autosave N` | `PAD_AUTOSAVE` | `3` | Autosave interval in seconds (accepts `5` or `5s`). `0` disables periodic autosave. |
+| `--config PATH` | `PAD_CONFIG` | `$XDG_CONFIG_HOME/pad/config.toml` | Config file location. |
+| `--print` / `--tab TITLE` | — | — | Dump notes to stdout and exit (no TUI). |
 | `--version` | — | — | Print version and exit. |
+
+### Config file
+
+A simple `key = value` file (TOML-ish). Default location `~/.config/pad/config.toml`:
+
+```toml
+dir = "~/notes"
+workspace = "work"
+autosave = 5
+```
 
 Set defaults once in your shell profile, e.g.:
 

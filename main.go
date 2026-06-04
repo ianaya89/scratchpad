@@ -8,7 +8,9 @@ import (
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/glamour"
 )
 
 type mode int
@@ -19,6 +21,9 @@ const (
 	modeNewWorkspace
 	modeSwitchWorkspace
 	modeConfirmDelete
+	modeSearch
+	modeHelp
+	modePreview
 )
 
 type tab struct {
@@ -41,6 +46,12 @@ type model struct {
 	mode   mode
 	wsList []string // for switch picker
 	wsPick int
+
+	searchResults []int // tab indices matching the search query
+	searchPick    int
+
+	preview      viewport.Model
+	previewReady bool
 
 	width, height int
 	status        string
@@ -149,6 +160,82 @@ func (m *model) closeTab() {
 	m.syncToTextarea()
 }
 
+// moveTab reorders the active tab by delta, swapping numeric prefixes on disk.
+func (m *model) moveTab(delta int) {
+	j := m.active + delta
+	if j < 0 || j >= len(m.tabs) || len(m.tabs) < 2 {
+		return
+	}
+	m.saveActive()
+	a, b := &m.tabs[m.active], &m.tabs[j]
+	pa, pb := prefixOf(a.file), prefixOf(b.file)
+	na, nb := setPrefix(a.file, pb), setPrefix(b.file, pa)
+	if err := os.Rename(a.file, na); err != nil {
+		return
+	}
+	if err := os.Rename(b.file, nb); err != nil {
+		os.Rename(na, a.file) // best-effort rollback
+		return
+	}
+	a.file, b.file = na, nb
+	m.tabs[m.active], m.tabs[j] = m.tabs[j], m.tabs[m.active]
+	m.active = j
+}
+
+// runSearch recomputes which tabs match the current query (title + body).
+func (m *model) runSearch(query string) {
+	m.stash()
+	q := strings.ToLower(strings.TrimSpace(query))
+	m.searchResults = m.searchResults[:0]
+	for i, t := range m.tabs {
+		if q == "" ||
+			strings.Contains(strings.ToLower(t.title), q) ||
+			strings.Contains(strings.ToLower(t.content), q) {
+			m.searchResults = append(m.searchResults, i)
+		}
+	}
+	if m.searchPick >= len(m.searchResults) {
+		m.searchPick = 0
+	}
+}
+
+// openPreview renders the active note as styled markdown into the viewport.
+func (m *model) openPreview() {
+	m.stash()
+	body := ""
+	if len(m.tabs) > 0 {
+		body = m.tabs[m.active].content
+	}
+	if strings.TrimSpace(body) == "" {
+		body = "*(empty note)*"
+	}
+	w := m.width - 2
+	if w < 20 {
+		w = 20
+	}
+	out := body
+	if r, err := glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithWordWrap(w),
+	); err == nil {
+		if rendered, err := r.Render(body); err == nil {
+			out = rendered
+		}
+	}
+	m.preview = viewport.New(m.width, m.previewHeight())
+	m.preview.SetContent(out)
+	m.previewReady = true
+	m.mode = modePreview
+}
+
+func (m model) previewHeight() int {
+	h := m.height - 2
+	if h < 3 {
+		h = 3
+	}
+	return h
+}
+
 // autosaveInterval is set from config; 0 disables periodic autosave.
 var autosaveInterval = defaultAutosave
 
@@ -186,6 +273,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updatePicker(msg)
 		case modeConfirmDelete:
 			return m.updateConfirmDelete(msg)
+		case modeSearch:
+			return m.updateSearch(msg)
+		case modeHelp:
+			m.mode = modeEdit
+			return m, nil
+		case modePreview:
+			return m.updatePreview(msg)
 		}
 	}
 
@@ -208,11 +302,32 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+d", "ctrl+w":
 		m.mode = modeConfirmDelete
 		return m, nil
-	case "ctrl+}", "ctrl+right", "alt+l", "shift+right":
+	case "ctrl+>", "ctrl+}", "ctrl+right", "alt+l", "shift+right":
 		m.switchTab(1)
 		return m, nil
-	case "ctrl+{", "ctrl+left", "alt+h", "shift+left":
+	case "ctrl+<", "ctrl+{", "ctrl+left", "alt+h", "shift+left":
 		m.switchTab(-1)
+		return m, nil
+	case "alt+L", "alt+shift+l":
+		m.moveTab(1)
+		m.status = "moved tab"
+		return m, nil
+	case "alt+H", "alt+shift+h":
+		m.moveTab(-1)
+		m.status = "moved tab"
+		return m, nil
+	case "ctrl+f":
+		m.searchPick = 0
+		m.input.SetValue("")
+		m.input.Focus()
+		m.runSearch("")
+		m.mode = modeSearch
+		return m, nil
+	case "ctrl+o":
+		m.openPreview()
+		return m, nil
+	case "ctrl+g", "f1":
+		m.mode = modeHelp
 		return m, nil
 	case "ctrl+s":
 		m.saveAll()
@@ -252,6 +367,47 @@ func (m model) updateConfirmDelete(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = modeEdit
 		return m, nil
 	}
+}
+
+func (m model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "ctrl+c":
+		m.mode = modeEdit
+		return m, nil
+	case "up", "ctrl+p":
+		if m.searchPick > 0 {
+			m.searchPick--
+		}
+		return m, nil
+	case "down", "ctrl+n":
+		if m.searchPick < len(m.searchResults)-1 {
+			m.searchPick++
+		}
+		return m, nil
+	case "enter":
+		if len(m.searchResults) > 0 {
+			m.saveActive()
+			m.active = m.searchResults[m.searchPick]
+			m.syncToTextarea()
+		}
+		m.mode = modeEdit
+		return m, nil
+	}
+	var cmd tea.Cmd
+	m.input, cmd = m.input.Update(msg)
+	m.runSearch(m.input.Value())
+	return m, cmd
+}
+
+func (m model) updatePreview(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "ctrl+o", "q", "ctrl+c":
+		m.mode = modeEdit
+		return m, nil
+	}
+	var cmd tea.Cmd
+	m.preview, cmd = m.preview.Update(msg)
+	return m, cmd
 }
 
 func (m model) updateInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -327,9 +483,30 @@ func (m *model) layoutTextarea() {
 	}
 	m.ta.SetWidth(m.width)
 	m.ta.SetHeight(m.height - 4) // tab bar + footer
+	if m.previewReady {
+		m.preview.Width = m.width
+		m.preview.Height = m.previewHeight()
+	}
 }
 
 var version = "dev"
+
+// runPrint dumps a workspace's notes to stdout (no TUI). With tabFilter set,
+// only notes whose title contains the filter (case-insensitive) are printed.
+func runPrint(ws, tabFilter string) {
+	notes, err := loadNotes(ws)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	filter := strings.ToLower(strings.TrimSpace(tabFilter))
+	for _, n := range notes {
+		if filter != "" && !strings.Contains(strings.ToLower(n.title), filter) {
+			continue
+		}
+		fmt.Printf("## %s\n\n%s\n\n", n.title, readNote(n.file))
+	}
+}
 
 func main() {
 	cfg, ok := loadConfig(os.Args[1:])
@@ -338,6 +515,11 @@ func main() {
 	}
 	dataRoot = cfg.dataDir
 	autosaveInterval = cfg.autosave
+
+	if cfg.print {
+		runPrint(cfg.workspace, cfg.tab)
+		return
+	}
 
 	p := tea.NewProgram(newModel(cfg.workspace), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {

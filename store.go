@@ -94,8 +94,38 @@ func readNote(path string) string {
 	return string(b)
 }
 
+// writeNote writes atomically: a temp file in the same dir, then rename.
+// This avoids a truncated/corrupt note if the process dies mid-write.
 func writeNote(path, content string) error {
-	return os.WriteFile(path, []byte(content), 0o644)
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, ".pad-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.WriteString(content); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	return os.Rename(tmpName, path)
+}
+
+// setPrefix returns path with its numeric prefix replaced by n (slug kept).
+func setPrefix(path string, n int) string {
+	m := prefixRe.FindStringSubmatch(filepath.Base(path))
+	slugPart := "untitled"
+	if m != nil {
+		slugPart = m[2]
+	}
+	return filepath.Join(filepath.Dir(path), strconv.Itoa(n)+"-"+slugPart+".md")
 }
 
 // nextPath builds the next numbered file path for a title in a workspace.
