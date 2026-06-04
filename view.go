@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -61,25 +62,59 @@ func (m model) View() string {
 
 func (m model) tabBar() string {
 	ws := wsStyle.Render("⌂ " + m.ws)
-	var tabs []string
+
+	labels := make([]string, len(m.tabs))
 	for i, t := range m.tabs {
 		label := t.title
 		if t.dirty {
 			label += " •"
 		}
 		if i == m.active {
-			tabs = append(tabs, activeTabStyle.Render(label))
+			labels[i] = activeTabStyle.Render(label)
 		} else {
-			tabs = append(tabs, tabStyle.Render(label))
+			labels[i] = tabStyle.Render(label)
 		}
 	}
-	row := lipgloss.JoinHorizontal(lipgloss.Top, append([]string{ws, " "}, tabs...)...)
-	return row
+
+	// fit a window of tabs (always including the active one) into the width,
+	// scrolling and showing ‹N / N› indicators for hidden tabs on each side.
+	budget := m.width - lipgloss.Width(ws) - 1
+	if budget < 10 {
+		budget = 10
+	}
+	start, end := m.active, m.active+1
+	used := lipgloss.Width(labels[m.active])
+	for {
+		grew := false
+		if end < len(labels) && used+lipgloss.Width(labels[end]) <= budget {
+			used += lipgloss.Width(labels[end])
+			end++
+			grew = true
+		}
+		if start > 0 && used+lipgloss.Width(labels[start-1]) <= budget {
+			start--
+			used += lipgloss.Width(labels[start])
+			grew = true
+		}
+		if !grew {
+			break
+		}
+	}
+
+	parts := []string{ws, " "}
+	if start > 0 {
+		parts = append(parts, tabStyle.Render("‹"+strconv.Itoa(start)))
+	}
+	parts = append(parts, labels[start:end]...)
+	if end < len(labels) {
+		parts = append(parts, tabStyle.Render(strconv.Itoa(len(labels)-end)+"›"))
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
 }
 
 func (m model) footer() string {
 	help := footerStyle.Render(
-		"^t new · ^d del · ^p/^n prev/next · ⌥H/⌥L move · ^f find · ^o preview · ^e ws · ^g help · ^q quit",
+		"^t new · ^d del · ^p/^n prev/next · ⌥H/⌥L move · ^f find · ^o preview · ^e ws · ^/ help · ^q quit",
 	)
 	if m.status != "" {
 		return lipgloss.JoinHorizontal(lipgloss.Top, statusStyle.Render(m.status), "  ", help)
@@ -116,12 +151,13 @@ func (m model) helpView() string {
 		{"^t", "new tab"},
 		{"^d / ^w", "delete note (confirm)"},
 		{"^p / ^n", "previous / next tab"},
+		{"alt+1..9", "jump to tab N"},
 		{"alt+H / alt+L", "move tab left / right"},
 		{"^f", "find in workspace"},
 		{"^o", "markdown preview"},
 		{"^r", "rename tab"},
 		{"^e", "switch / new workspace"},
-		{"^g / F1", "this help"},
+		{"^/ / F1", "this help"},
 		{"^s", "save now"},
 		{"^q / ^c", "save & quit"},
 	}

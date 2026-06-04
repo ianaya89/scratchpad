@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -64,7 +65,7 @@ type model struct {
 
 func newModel(ws string) model {
 	ta := textarea.New()
-	ta.Placeholder = "Start typing…  (^g help · ^t new tab · ^f find · ^o preview · ^q quit)"
+	ta.Placeholder = "Start typing…  (^/ help · ^t new tab · ^f find · ^o preview · ^q quit)"
 	ta.ShowLineNumbers = false
 	ta.CharLimit = 0
 	ta.Focus()
@@ -310,6 +311,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// alt+1..9 jumps straight to that tab
+	if s := msg.String(); len(s) == 5 && strings.HasPrefix(s, "alt+") && s[4] >= '1' && s[4] <= '9' {
+		if idx := int(s[4] - '1'); idx < len(m.tabs) && idx != m.active {
+			m.saveActive()
+			m.active = idx
+			m.syncToTextarea()
+		}
+		return m, nil
+	}
 	switch msg.String() {
 	case "ctrl+c", "ctrl+q":
 		m.saveAll()
@@ -347,7 +357,7 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+o":
 		m.openPreview()
 		return m, nil
-	case "ctrl+g", "f1":
+	case "ctrl+/", "ctrl+_", "f1":
 		m.mode = modeHelp
 		return m, nil
 	case "ctrl+s":
@@ -529,6 +539,66 @@ func runPrint(ws, tabFilter string) {
 	}
 }
 
+// resolveContent returns the content for --new/--append: the --content flag if
+// set, otherwise stdin when it's piped/redirected, otherwise empty.
+func resolveContent(cfg config) string {
+	if cfg.contentSet {
+		return cfg.content
+	}
+	if fi, err := os.Stdin.Stat(); err == nil && fi.Mode()&os.ModeCharDevice == 0 {
+		b, _ := io.ReadAll(os.Stdin)
+		return strings.TrimRight(string(b), "\n")
+	}
+	return ""
+}
+
+// runNew creates a note titled title with content, then prints its path.
+func runNew(ws, title, content string) {
+	path := nextPath(ws, title)
+	if err := writeNote(path, content); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Println(path)
+}
+
+// runAppend appends content to the first note matching title (by slug, then
+// substring); if none matches it creates the note. Prints the path.
+func runAppend(ws, title, content string) {
+	notes, _ := loadNotes(ws)
+	want := slug(title)
+	var match string
+	for _, n := range notes {
+		if slug(n.title) == want {
+			match = n.file
+			break
+		}
+	}
+	if match == "" {
+		lt := strings.ToLower(strings.TrimSpace(title))
+		for _, n := range notes {
+			if strings.Contains(strings.ToLower(n.title), lt) {
+				match = n.file
+				break
+			}
+		}
+	}
+	if match == "" {
+		runNew(ws, title, content)
+		return
+	}
+	existing := readNote(match)
+	sep := ""
+	if existing != "" && !strings.HasSuffix(existing, "\n") {
+		sep = "\n"
+	}
+	if err := writeNote(match, existing+sep+content+"\n"); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Println(match)
+}
+
 func main() {
 	cfg, ok := loadConfig(os.Args[1:])
 	if !ok {
@@ -537,8 +607,15 @@ func main() {
 	dataRoot = cfg.dataDir
 	autosaveInterval = cfg.autosave
 
-	if cfg.print {
+	switch {
+	case cfg.print:
 		runPrint(cfg.workspace, cfg.tab)
+		return
+	case cfg.newTitle != "":
+		runNew(cfg.workspace, cfg.newTitle, resolveContent(cfg))
+		return
+	case cfg.appendTo != "":
+		runAppend(cfg.workspace, cfg.appendTo, resolveContent(cfg))
 		return
 	}
 

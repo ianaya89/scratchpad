@@ -9,10 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Empty-note placeholder now hints the core keybindings (`^g`/`^t`/`^f`/`^o`/`^q`).
+- `--new TITLE` / `--append TITLE` with `--content` or stdin: create or append to
+  notes from the command line / pipes, no TUI.
+- `alt+1`…`alt+9` jumps straight to a tab.
+- Tab bar scrolls when tabs overflow the terminal width, with `‹N` / `N›` counters.
+- Empty-note placeholder now hints the core keybindings.
 
 ### Changed
 
+- Help overlay key is now `^/` (was `^g`); `F1` still works.
 - Transient status messages (e.g. "saved", "moved tab") auto-clear after a few seconds.
 
 ## [0.1.0] - 2026-06-04

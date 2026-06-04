@@ -21,8 +21,12 @@ type config struct {
 	autosave  time.Duration
 
 	// non-TUI actions
-	print bool
-	tab   string
+	print      bool
+	tab        string
+	newTitle   string
+	appendTo   string
+	content    string
+	contentSet bool
 }
 
 // defaultDataDir is the fallback used when nothing overrides storage,
@@ -67,6 +71,9 @@ func loadConfig(args []string) (config, bool) {
 	cfgPath := fs.String("config", "", "path to config file")
 	doPrint := fs.Bool("print", false, "print note(s) to stdout and exit (no TUI)")
 	tab := fs.String("tab", "", "with --print: only this tab (title substring)")
+	newTitle := fs.String("new", "", "create a note with this title and exit (no TUI)")
+	appendTo := fs.String("append", "", "append to the note matching this title (creates it if absent) and exit")
+	content := fs.String("content", "", "content for --new/--append (default: stdin)")
 	showVersion := fs.Bool("version", false, "print version and exit")
 
 	if err := fs.Parse(args); err != nil {
@@ -123,6 +130,14 @@ func loadConfig(args []string) (config, bool) {
 
 	c.print = *doPrint
 	c.tab = *tab
+	c.newTitle = *newTitle
+	c.appendTo = *appendTo
+	c.content = *content
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "content" {
+			c.contentSet = true
+		}
+	})
 	c.workspace = slug(c.workspace)
 	return c, true
 }
@@ -211,6 +226,8 @@ Examples:
   pad --dir ~/notes    store notes under ~/notes
   pad --print          dump the workspace's notes to stdout
   pad --print --tab todo
+  pad --new "meeting" --content "kickoff notes"
+  echo "remember this" | pad --append todo
 
 Flags:
   --dir PATH           data directory
@@ -220,6 +237,9 @@ Flags:
   --config PATH        config file (default $PAD_CONFIG or ~/.config/pad/config.toml)
   --print              print note(s) to stdout and exit (no TUI)
   --tab TITLE          with --print, restrict to tabs matching TITLE
+  --new TITLE          create a note titled TITLE and exit
+  --append TITLE       append to the note matching TITLE (creates it if absent)
+  --content TEXT       content for --new/--append (default: read from stdin)
   --version            print version and exit
   -h, --help           show this help
 

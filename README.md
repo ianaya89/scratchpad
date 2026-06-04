@@ -93,7 +93,23 @@ pad ideas            # open/create the "ideas" workspace
 pad --dir ~/notes    # store notes under ~/notes instead of the default
 pad --print          # dump the workspace's notes to stdout (no TUI)
 pad --print --tab todo
+pad --new "meeting" --content "kickoff notes"   # create a note, no TUI
+echo "remember this" | pad --append todo        # append to a note from stdin
 pad --help           # full flag reference
+```
+
+### Scripting (no TUI)
+
+```sh
+# create a note (content from --content or stdin)
+pad --new "Standup" --content "- shipped X"
+git log --oneline -5 | pad --new "recent commits"
+
+# append to a note (matched by title; created if absent)
+echo "buy milk" | pad --append shopping
+
+# read notes back out
+pad --print --tab standup
 ```
 
 ### Keybindings
@@ -104,14 +120,18 @@ pad --help           # full flag reference
 | `^d` (or `^w`) | Delete current note (asks to confirm) |
 | `^n` | Next tab |
 | `^p` | Previous tab |
+| `alt+1`…`alt+9` | Jump straight to tab N |
 | `alt+L` / `alt+H` | Move current tab right / left |
 | `^f` | Find across tabs (title + body) in the workspace |
 | `^o` | Markdown preview of the current note |
 | `^r` | Rename current tab |
 | `^e` | Workspace picker (switch, or `n` to create new) |
-| `^g` (or `F1`) | Help overlay |
+| `^/` (or `F1`) | Help overlay |
 | `^s` | Save now |
 | `^q` (or `^c`) | Save everything and quit |
+
+When tabs exceed the terminal width, the bar scrolls to keep the active tab
+visible and shows `‹N` / `N›` counters for hidden tabs on each side.
 
 Fallback tab-switch keys are also bound: `alt+h`/`alt+l`, `ctrl+←`/`ctrl+→`, `shift+←`/`shift+→`.
 
@@ -128,6 +148,7 @@ Everything resolves with the precedence **flag → environment variable → conf
 | `--autosave N` | `PAD_AUTOSAVE` | `3` | Autosave interval in seconds (accepts `5` or `5s`). `0` disables periodic autosave. |
 | `--config PATH` | `PAD_CONFIG` | `$XDG_CONFIG_HOME/pad/config.toml` | Config file location. |
 | `--print` / `--tab TITLE` | — | — | Dump notes to stdout and exit (no TUI). |
+| `--new TITLE` / `--append TITLE` / `--content TEXT` | — | — | Create or append to a note from CLI/stdin and exit (no TUI). |
 | `--version` | — | — | Print version and exit. |
 
 ### Config file

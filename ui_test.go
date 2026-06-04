@@ -1,10 +1,13 @@
 package main
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func upd(m model, msg tea.Msg) model {
@@ -134,9 +137,9 @@ func TestKeyRenameFlow(t *testing.T) {
 
 func TestKeyHelpToggle(t *testing.T) {
 	m := newTestModel(t, "help")
-	m = upd(m, key(tea.KeyCtrlG))
+	m = upd(m, key(tea.KeyF1))
 	if m.mode != modeHelp {
-		t.Fatalf("^g mode = %d, want help", m.mode)
+		t.Fatalf("F1 mode = %d, want help", m.mode)
 	}
 	m = upd(m, runes("x")) // any key closes
 	if m.mode != modeEdit {
@@ -152,6 +155,77 @@ func TestKeyQuitReturnsQuitCmd(t *testing.T) {
 	}
 	if _, ok := cmd().(tea.QuitMsg); !ok {
 		t.Error("^q should return tea.Quit")
+	}
+}
+
+func altRunes(s string) tea.KeyMsg {
+	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s), Alt: true}
+}
+
+func TestAltJump(t *testing.T) {
+	dataRoot = t.TempDir()
+	ws := "jump"
+	seedWorkspace(t, ws, map[string]string{
+		"1-a.md": "a", "2-b.md": "b", "3-c.md": "c",
+	})
+	m := newModel(ws)
+	m.width, m.height = 80, 24
+
+	m = upd(m, altRunes("3"))
+	if m.active != 2 {
+		t.Errorf("alt+3 -> active %d, want 2", m.active)
+	}
+	m = upd(m, altRunes("1"))
+	if m.active != 0 {
+		t.Errorf("alt+1 -> active %d, want 0", m.active)
+	}
+	m = upd(m, altRunes("9")) // out of range: no-op
+	if m.active != 0 {
+		t.Errorf("alt+9 (oob) changed active to %d", m.active)
+	}
+}
+
+func TestTabBarOverflowFits(t *testing.T) {
+	dataRoot = t.TempDir()
+	ws := "ovf"
+	notes := map[string]string{}
+	for i := 1; i <= 20; i++ {
+		notes[strconv.Itoa(i)+"-tab-number-"+strconv.Itoa(i)+".md"] = ""
+	}
+	seedWorkspace(t, ws, notes)
+	m := newModel(ws)
+	m.width, m.height = 40, 24
+	m.active = 15
+	m = upd(m, key(tea.KeyCtrlT)) // also exercises a fresh render path
+	m.active = 15
+
+	bar := m.tabBar()
+	if lipgloss.Width(bar) > m.width+4 { // small slack for indicator rounding
+		t.Errorf("tab bar width %d exceeds terminal %d", lipgloss.Width(bar), m.width)
+	}
+	if !strings.Contains(bar, "›") && !strings.Contains(bar, "‹") {
+		t.Error("expected an overflow indicator with 20 tabs in width 40")
+	}
+}
+
+func TestRunNewAndAppend(t *testing.T) {
+	dataRoot = t.TempDir()
+	ws := "cli"
+
+	runNew(ws, "Hello World", "body")
+	notes, _ := loadNotes(ws)
+	if len(notes) != 1 || readNote(notes[0].file) != "body" {
+		t.Fatalf("runNew: notes=%d content=%q", len(notes), readNote(notes[0].file))
+	}
+
+	runAppend(ws, "hello", "more") // matches by slug
+	if got := readNote(notes[0].file); got != "body\nmore\n" {
+		t.Errorf("after append = %q, want \"body\\nmore\\n\"", got)
+	}
+
+	runAppend(ws, "does-not-exist", "z") // creates
+	if notes, _ := loadNotes(ws); len(notes) != 2 {
+		t.Errorf("append-missing should create: notes=%d", len(notes))
 	}
 }
 
