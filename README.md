@@ -56,8 +56,8 @@ pad --help           # full flag reference
 | --- | --- |
 | `^t` | New tab |
 | `^d` (or `^w`) | Delete current note (asks to confirm) |
-| `^>` | Next tab |
-| `^<` | Previous tab |
+| `^n` | Next tab |
+| `^p` | Previous tab |
 | `alt+L` / `alt+H` | Move current tab right / left |
 | `^f` | Find across tabs (title + body) in the workspace |
 | `^o` | Markdown preview of the current note |
@@ -67,9 +67,9 @@ pad --help           # full flag reference
 | `^s` | Save now |
 | `^q` (or `^c`) | Save everything and quit |
 
-Fallback tab-switch keys are also bound in case your terminal doesn't deliver `^<`/`^>`: `alt+h`/`alt+l`, `ctrl+←`/`ctrl+→`, `shift+←`/`shift+→`.
+Fallback tab-switch keys are also bound: `alt+h`/`alt+l`, `ctrl+←`/`ctrl+→`, `shift+←`/`shift+→`.
 
-> **Terminal note:** `^<`/`^>` are `ctrl+shift+,`/`ctrl+shift+.`. Some terminals don't emit these (or `ctrl`-arrows, which they may bind to pane navigation) as distinct chords. If switching tabs doesn't work, use `alt+h`/`alt+l` — the most broadly reliable.
+> **Terminal note:** `^p`/`^n` (plain `ctrl`+letter) are delivered by essentially every terminal. They replace `ctrl+n`/`ctrl+p` line movement inside a note — use the arrow keys for that. `ctrl`-arrows are also bound but some terminals grab them for pane navigation.
 
 ## Configuration
 

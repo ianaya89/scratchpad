@@ -79,7 +79,7 @@ func (m model) tabBar() string {
 
 func (m model) footer() string {
 	help := footerStyle.Render(
-		"^t new · ^d del · ^</^> switch · ⌥H/⌥L move · ^f find · ^o preview · ^e ws · ^g help · ^q quit",
+		"^t new · ^d del · ^p/^n prev/next · ⌥H/⌥L move · ^f find · ^o preview · ^e ws · ^g help · ^q quit",
 	)
 	if m.status != "" {
 		return lipgloss.JoinHorizontal(lipgloss.Top, statusStyle.Render(m.status), "  ", help)
@@ -115,7 +115,7 @@ func (m model) helpView() string {
 	rows := [][2]string{
 		{"^t", "new tab"},
 		{"^d / ^w", "delete note (confirm)"},
-		{"^< / ^>", "previous / next tab"},
+		{"^p / ^n", "previous / next tab"},
 		{"alt+H / alt+L", "move tab left / right"},
 		{"^f", "find in workspace"},
 		{"^o", "markdown preview"},

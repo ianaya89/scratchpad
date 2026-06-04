@@ -302,10 +302,10 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+d", "ctrl+w":
 		m.mode = modeConfirmDelete
 		return m, nil
-	case "ctrl+>", "ctrl+}", "ctrl+right", "alt+l", "shift+right":
+	case "ctrl+n", "ctrl+>", "ctrl+right", "alt+l", "shift+right":
 		m.switchTab(1)
 		return m, nil
-	case "ctrl+<", "ctrl+{", "ctrl+left", "alt+h", "shift+left":
+	case "ctrl+p", "ctrl+<", "ctrl+left", "alt+h", "shift+left":
 		m.switchTab(-1)
 		return m, nil
 	case "alt+L", "alt+shift+l":
