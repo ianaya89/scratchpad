@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--list` prints workspace names, or the tabs of a named workspace (`pad --list work`).
 - Each workspace reopens on the tab you last used.
 - `^x` toggles a Markdown task checkbox (`- [ ]` ↔ `- [x]`) on the current line.
+- Undo/redo (`^z` / `^y`), tracked per tab with debounced checkpoints.
 - Live word/character count in the footer while editing.
 - Live split preview (`^b`): edit raw Markdown on the left with a rendered view
   updating on the right as you type.

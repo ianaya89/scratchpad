@@ -123,7 +123,7 @@ func (m model) tabBar() string {
 
 func (m model) footer() string {
 	help := footerStyle.Render(
-		"^t new · ^d del · ^x check · ^p/^n prev/next · ^←/^→ move · ^f find · ^o/^b preview · ^/ help · ^q quit",
+		"^t new · ^d del · ^x check · ^z/^y undo · ^p/^n tab · ^←/^→ move · ^f find · ^o/^b preview · ^/ help · ^q quit",
 	)
 	left := footerStyle.Render(m.wordCount())
 	if m.status != "" {
@@ -166,6 +166,7 @@ func (m model) helpView() string {
 		{"^t", "new tab"},
 		{"^d / ^w", "delete note (confirm)"},
 		{"^x", "toggle task checkbox on line"},
+		{"^z / ^y", "undo / redo"},
 		{"^p / ^n", "previous / next tab"},
 		{"alt+1..9", "jump to tab N"},
 		{"^← / ^→", "move tab left / right"},

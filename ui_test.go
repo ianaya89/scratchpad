@@ -298,6 +298,50 @@ func TestRestoreLastTab(t *testing.T) {
 	}
 }
 
+func TestUndoRedo(t *testing.T) {
+	m := newTestModel(t, "undo")
+	m = upd(m, runes("hello"))
+	m = upd(m, undoTickMsg(m.undoSeq)) // checkpoint
+	m = upd(m, runes(" world"))
+	m = upd(m, undoTickMsg(m.undoSeq)) // checkpoint
+	if m.ta.Value() != "hello world" {
+		t.Fatalf("buffer = %q", m.ta.Value())
+	}
+	m = upd(m, key(tea.KeyCtrlZ))
+	if m.ta.Value() != "hello" {
+		t.Errorf("after undo = %q, want hello", m.ta.Value())
+	}
+	m = upd(m, key(tea.KeyCtrlZ))
+	if m.ta.Value() != "" {
+		t.Errorf("after 2nd undo = %q, want empty", m.ta.Value())
+	}
+	m = upd(m, key(tea.KeyCtrlY))
+	if m.ta.Value() != "hello" {
+		t.Errorf("after redo = %q, want hello", m.ta.Value())
+	}
+	// content stash + dirty so it persists
+	if m.tabs[m.active].content != "hello" {
+		t.Errorf("tab content = %q, want hello", m.tabs[m.active].content)
+	}
+}
+
+func TestUndoPerTab(t *testing.T) {
+	m := newTestModel(t, "undo2")
+	m = upd(m, runes("first"))
+	m = upd(m, undoTickMsg(m.undoSeq))
+	m = upd(m, key(tea.KeyCtrlT)) // new tab, switches (commits via createTab path)
+	m = upd(m, runes("second"))
+	m = upd(m, undoTickMsg(m.undoSeq))
+	// undo on tab 2 must not touch tab 1
+	m = upd(m, key(tea.KeyCtrlZ))
+	if m.ta.Value() != "" {
+		t.Errorf("tab2 undo = %q, want empty", m.ta.Value())
+	}
+	if m.tabs[0].content != "first" {
+		t.Errorf("tab1 content disturbed: %q", m.tabs[0].content)
+	}
+}
+
 func TestStatusAutoClear(t *testing.T) {
 	m := newTestModel(t, "stat")
 

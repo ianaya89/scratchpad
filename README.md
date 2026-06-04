@@ -126,6 +126,7 @@ pad --list work
 | `^t` | New tab |
 | `^d` (or `^w`) | Delete current note (asks to confirm) |
 | `^x` | Toggle a task checkbox (`- [ ]` ↔ `- [x]`) on the current line |
+| `^z` / `^y` | Undo / redo (per tab) |
 | `^n` | Next tab |
 | `^p` | Previous tab |
 | `alt+1`…`alt+9` | Jump straight to tab N |
@@ -206,10 +207,13 @@ export PAD_DIR="$HOME/.nb/scratchpad"
 
 ```
 pad/
-├── main.go         # TUI model, update loop, keybindings
+├── model.go        # model, tab/workspace ops, save/undo/redo, checkpoints
+├── update.go       # Init/Update loop and all key handlers
+├── markdown.go     # Glamour preview + split rendering, layout sizing
 ├── view.go         # rendering (tab bar, footer, overlays)
 ├── store.go        # file storage: workspaces, notes, slugs, paths
-├── config.go       # flag/env/default resolution
+├── config.go       # flag/env/file resolution
+├── cli.go          # main(); non-TUI runners (--print/--list/--new/--append)
 ├── *_test.go       # unit tests
 └── go.mod
 ```
