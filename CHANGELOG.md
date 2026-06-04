@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-04
+
 ### Added
 
 - `--new TITLE` / `--append TITLE` with `--content` or stdin: create or append to
@@ -59,5 +61,6 @@ First public release.
 - Tab switching on `^p` / `^n` with `alt+h`/`alt+l`, arrow, and shift-arrow fallbacks.
 - Distribution: GitHub Actions CI, GoReleaser cross-platform binaries, and a Homebrew cask.
 
-[Unreleased]: https://github.com/ianaya89/scratchpad/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ianaya89/scratchpad/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ianaya89/scratchpad/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ianaya89/scratchpad/releases/tag/v0.1.0
