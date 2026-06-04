@@ -86,6 +86,25 @@ func prefixOf(path string) int {
 	return n
 }
 
+// active-tab persistence: a small dotfile per workspace holds the basename of
+// the note that was active last, so reopening lands on the same tab.
+
+func activeFile(ws string) string {
+	return filepath.Join(workspaceDir(ws), ".active")
+}
+
+func readActiveNote(ws string) string {
+	b, err := os.ReadFile(activeFile(ws))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+func writeActiveNote(ws, base string) {
+	_ = os.WriteFile(activeFile(ws), []byte(base), 0o644)
+}
+
 func readNote(path string) string {
 	b, err := os.ReadFile(path)
 	if err != nil {

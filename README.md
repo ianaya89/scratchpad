@@ -110,7 +110,14 @@ echo "buy milk" | pad --append shopping
 
 # read notes back out
 pad --print --tab standup
+
+# list workspaces, or tabs of a workspace
+pad --list
+pad --list work
 ```
+
+> `pad` reopens each workspace on the tab you last used. The footer shows a live
+> word/char count while editing.
 
 ### Keybindings
 
@@ -118,6 +125,7 @@ pad --print --tab standup
 | --- | --- |
 | `^t` | New tab |
 | `^d` (or `^w`) | Delete current note (asks to confirm) |
+| `^x` | Toggle a task checkbox (`- [ ]` ↔ `- [x]`) on the current line |
 | `^n` | Next tab |
 | `^p` | Previous tab |
 | `alt+1`…`alt+9` | Jump straight to tab N |

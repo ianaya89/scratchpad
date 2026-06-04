@@ -27,6 +27,8 @@ type config struct {
 	appendTo   string
 	content    string
 	contentSet bool
+	list       bool
+	wsExplicit bool // a workspace was named via flag/positional
 }
 
 // defaultDataDir is the fallback used when nothing overrides storage,
@@ -74,6 +76,7 @@ func loadConfig(args []string) (config, bool) {
 	newTitle := fs.String("new", "", "create a note with this title and exit (no TUI)")
 	appendTo := fs.String("append", "", "append to the note matching this title (creates it if absent) and exit")
 	content := fs.String("content", "", "content for --new/--append (default: stdin)")
+	doList := fs.Bool("list", false, "list workspaces (or tabs of a named workspace) and exit")
 	showVersion := fs.Bool("version", false, "print version and exit")
 
 	if err := fs.Parse(args); err != nil {
@@ -120,14 +123,17 @@ func loadConfig(args []string) (config, bool) {
 	}
 	if *ws != "" {
 		c.workspace = *ws
+		c.wsExplicit = true
 	}
 	if *autosave >= 0 {
 		c.autosave = time.Duration(*autosave) * time.Second
 	}
 	if positional := fs.Arg(0); positional != "" {
 		c.workspace = positional
+		c.wsExplicit = true
 	}
 
+	c.list = *doList
 	c.print = *doPrint
 	c.tab = *tab
 	c.newTitle = *newTitle
@@ -235,6 +241,7 @@ Flags:
   --workspace NAME     workspace to open (default $PAD_WORKSPACE or "default")
   --autosave N         autosave interval in seconds (default $PAD_AUTOSAVE or 3; 0 disables)
   --config PATH        config file (default $PAD_CONFIG or ~/.config/pad/config.toml)
+  --list               list workspaces, or tabs of a named workspace, and exit
   --print              print note(s) to stdout and exit (no TUI)
   --tab TITLE          with --print, restrict to tabs matching TITLE
   --new TITLE          create a note titled TITLE and exit

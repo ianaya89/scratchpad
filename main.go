@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -95,10 +96,26 @@ func (m *model) reload() {
 	if len(m.tabs) == 0 {
 		m.createTab("untitled")
 	}
+	// restore the last active tab for this workspace, if recorded
+	if base := readActiveNote(m.ws); base != "" {
+		for i, t := range m.tabs {
+			if filepath.Base(t.file) == base {
+				m.active = i
+				break
+			}
+		}
+	}
 	if m.active >= len(m.tabs) {
 		m.active = len(m.tabs) - 1
 	}
 	m.syncToTextarea()
+}
+
+// persistActive records the current tab so the workspace reopens on it.
+func (m *model) persistActive() {
+	if len(m.tabs) > 0 {
+		writeActiveNote(m.ws, filepath.Base(m.tabs[m.active].file))
+	}
 }
 
 func (m *model) createTab(title string) {
@@ -106,6 +123,7 @@ func (m *model) createTab(title string) {
 	writeNote(path, "")
 	m.tabs = append(m.tabs, tab{file: path, title: title})
 	m.active = len(m.tabs) - 1
+	m.persistActive()
 }
 
 func (m *model) syncToTextarea() {
@@ -149,6 +167,7 @@ func (m *model) saveAll() {
 			m.tabs[i].dirty = false
 		}
 	}
+	m.persistActive()
 }
 
 func (m *model) switchTab(delta int) {
@@ -158,6 +177,7 @@ func (m *model) switchTab(delta int) {
 	m.saveActive()
 	m.active = (m.active + delta + len(m.tabs)) % len(m.tabs)
 	m.syncToTextarea()
+	m.persistActive()
 }
 
 func (m *model) closeTab() {
@@ -173,6 +193,39 @@ func (m *model) closeTab() {
 		m.createTab("untitled")
 	}
 	m.syncToTextarea()
+}
+
+// toggleCheckboxLine toggles a markdown task checkbox on a single line:
+// "[ ]" <-> "[x]", or turns a plain line into "- [ ] ...".
+func toggleCheckboxLine(s string) string {
+	if strings.Contains(s, "[ ]") {
+		return strings.Replace(s, "[ ]", "[x]", 1)
+	}
+	low := strings.ToLower(s)
+	if i := strings.Index(low, "[x]"); i >= 0 {
+		return s[:i] + "[ ]" + s[i+3:]
+	}
+	trimmed := strings.TrimLeft(s, " \t")
+	indent := s[:len(s)-len(trimmed)]
+	trimmed = strings.TrimPrefix(trimmed, "- ")
+	return indent + "- [ ] " + trimmed
+}
+
+// toggleCheckbox toggles the checkbox on the cursor's current line.
+func (m *model) toggleCheckbox() {
+	val := m.ta.Value()
+	lines := strings.Split(val, "\n")
+	li := m.ta.Line()
+	if li < 0 || li >= len(lines) {
+		return
+	}
+	lines[li] = toggleCheckboxLine(lines[li])
+	m.ta.SetValue(strings.Join(lines, "\n"))
+	// SetValue parks the cursor at the buffer end; walk back up to line li
+	for i := 0; i < len(lines)-1-li; i++ {
+		m.ta.CursorUp()
+	}
+	m.ta.CursorEnd()
 }
 
 // moveTab reorders the active tab by delta, swapping numeric prefixes on disk.
@@ -195,6 +248,7 @@ func (m *model) moveTab(delta int) {
 	a.file, b.file = na, nb
 	m.tabs[m.active], m.tabs[j] = m.tabs[j], m.tabs[m.active]
 	m.active = j
+	m.persistActive()
 }
 
 // runSearch recomputes which tabs match the current query (title + body).
@@ -392,6 +446,7 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.saveActive()
 			m.active = idx
 			m.syncToTextarea()
+			m.persistActive()
 		}
 		return m, nil
 	}
@@ -407,6 +462,12 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "ctrl+d", "ctrl+w":
 		m.mode = modeConfirmDelete
+		return m, nil
+	case "ctrl+x":
+		m.toggleCheckbox()
+		if m.splitPreview {
+			m.refreshSplit()
+		}
 		return m, nil
 	case "ctrl+n", "ctrl+>", "alt+l", "shift+right":
 		m.switchTab(1)
@@ -694,6 +755,20 @@ func runAppend(ws, title, content string) {
 	fmt.Println(match)
 }
 
+// runList prints workspace names, or the tab titles of a named workspace.
+func runList(cfg config) {
+	if cfg.wsExplicit {
+		notes, _ := loadNotes(cfg.workspace)
+		for _, n := range notes {
+			fmt.Println(n.title)
+		}
+		return
+	}
+	for _, w := range listWorkspaces() {
+		fmt.Println(w)
+	}
+}
+
 func main() {
 	cfg, ok := loadConfig(os.Args[1:])
 	if !ok {
@@ -706,6 +781,9 @@ func main() {
 	}
 
 	switch {
+	case cfg.list:
+		runList(cfg)
+		return
 	case cfg.print:
 		runPrint(cfg.workspace, cfg.tab)
 		return

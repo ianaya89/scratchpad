@@ -250,6 +250,54 @@ func TestSplitPreviewToggle(t *testing.T) {
 	}
 }
 
+func TestToggleCheckboxLine(t *testing.T) {
+	cases := map[string]string{
+		"- [ ] task":  "- [x] task",
+		"- [x] task":  "- [ ] task",
+		"- [X] task":  "- [ ] task",
+		"buy milk":    "- [ ] buy milk",
+		"- buy milk":  "- [ ] buy milk",
+		"  - [ ] sub": "  - [x] sub",
+	}
+	for in, want := range cases {
+		if got := toggleCheckboxLine(in); got != want {
+			t.Errorf("toggleCheckboxLine(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestCheckboxKey(t *testing.T) {
+	m := newTestModel(t, "cb")
+	m = upd(m, runes("- [ ] do it"))
+	m = upd(m, key(tea.KeyCtrlX))
+	if !strings.Contains(m.ta.Value(), "[x]") {
+		t.Errorf("checkbox not checked: %q", m.ta.Value())
+	}
+	m = upd(m, key(tea.KeyCtrlX))
+	if !strings.Contains(m.ta.Value(), "[ ]") {
+		t.Errorf("checkbox not unchecked: %q", m.ta.Value())
+	}
+}
+
+func TestRestoreLastTab(t *testing.T) {
+	dataRoot = t.TempDir()
+	ws := "rest"
+	seedWorkspace(t, ws, map[string]string{
+		"1-a.md": "a", "2-b.md": "b", "3-c.md": "c",
+	})
+	m := newModel(ws)
+	m.width, m.height = 80, 24
+	m = upd(m, altRunes("3")) // jump to tab 3, persists active
+	if m.active != 2 {
+		t.Fatalf("active = %d", m.active)
+	}
+	// a fresh model for the same workspace should reopen on tab 3
+	m2 := newModel(ws)
+	if m2.active != 2 {
+		t.Errorf("restored active = %d, want 2", m2.active)
+	}
+}
+
 func TestStatusAutoClear(t *testing.T) {
 	m := newTestModel(t, "stat")
 
