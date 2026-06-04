@@ -30,6 +30,7 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("63")).
 			Padding(1, 2)
+	dividerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
 )
 
 func (m model) View() string {
@@ -57,6 +58,14 @@ func (m model) View() string {
 	tabBar := m.tabBar()
 	footer := m.footer()
 	body := m.ta.View()
+	if m.splitPreview {
+		h := m.height - 4
+		if h < 1 {
+			h = 1
+		}
+		divider := dividerStyle.Render(strings.TrimRight(strings.Repeat("│\n", h), "\n"))
+		body = lipgloss.JoinHorizontal(lipgloss.Top, m.ta.View(), divider, m.splitVP.View())
+	}
 	return lipgloss.JoinVertical(lipgloss.Left, tabBar, body, footer)
 }
 
@@ -114,7 +123,7 @@ func (m model) tabBar() string {
 
 func (m model) footer() string {
 	help := footerStyle.Render(
-		"^t new · ^d del · ^p/^n prev/next · ⌥H/⌥L move · ^f find · ^o preview · ^e ws · ^/ help · ^q quit",
+		"^t new · ^d del · ^p/^n prev/next · ⌥H/⌥L move · ^f find · ^o preview · ^b split · ^e ws · ^/ help · ^q quit",
 	)
 	if m.status != "" {
 		return lipgloss.JoinHorizontal(lipgloss.Top, statusStyle.Render(m.status), "  ", help)
@@ -154,7 +163,8 @@ func (m model) helpView() string {
 		{"alt+1..9", "jump to tab N"},
 		{"alt+H / alt+L", "move tab left / right"},
 		{"^f", "find in workspace"},
-		{"^o", "markdown preview"},
+		{"^o", "markdown preview (full)"},
+		{"^b", "live split preview"},
 		{"^r", "rename tab"},
 		{"^e", "switch / new workspace"},
 		{"^/ / F1", "this help"},

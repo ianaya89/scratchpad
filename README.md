@@ -123,7 +123,8 @@ pad --print --tab standup
 | `alt+1`…`alt+9` | Jump straight to tab N |
 | `alt+L` / `alt+H` | Move current tab right / left |
 | `^f` | Find across tabs (title + body) in the workspace |
-| `^o` | Markdown preview of the current note |
+| `^o` | Full-screen Markdown preview of the current note |
+| `^b` | Toggle live split preview (source left, rendered right) |
 | `^r` | Rename current tab |
 | `^e` | Workspace picker (switch, or `n` to create new) |
 | `^/` (or `F1`) | Help overlay |
@@ -132,6 +133,13 @@ pad --print --tab standup
 
 When tabs exceed the terminal width, the bar scrolls to keep the active tab
 visible and shows `‹N` / `N›` counters for hidden tabs on each side.
+
+**Live split preview** (`^b`) splits the screen — you keep editing the raw
+Markdown on the left while a [Glamour](https://github.com/charmbracelet/glamour)-rendered
+view updates on the right as you type. `^o` is the full-screen rendered view.
+
+> If you run pad inside **tmux**, `^b` is tmux's prefix key — press it twice, or
+> remap tmux's prefix, to reach the split toggle.
 
 Fallback tab-switch keys are also bound: `alt+h`/`alt+l`, `ctrl+←`/`ctrl+→`, `shift+←`/`shift+→`.
 

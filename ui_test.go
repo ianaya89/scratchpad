@@ -229,6 +229,27 @@ func TestRunNewAndAppend(t *testing.T) {
 	}
 }
 
+func TestSplitPreviewToggle(t *testing.T) {
+	m := newTestModel(t, "split")
+	if m.editorWidth() != m.width {
+		t.Fatalf("editor not full width initially: %d/%d", m.editorWidth(), m.width)
+	}
+	m = upd(m, key(tea.KeyCtrlB))
+	if !m.splitPreview {
+		t.Fatal("^b did not enable split")
+	}
+	if m.editorWidth() >= m.width {
+		t.Errorf("editor not halved in split: %d/%d", m.editorWidth(), m.width)
+	}
+	if !strings.Contains(m.View(), "│") {
+		t.Error("split view missing divider")
+	}
+	m = upd(m, key(tea.KeyCtrlB))
+	if m.splitPreview || m.editorWidth() != m.width {
+		t.Error("^b did not restore full-width edit")
+	}
+}
+
 func TestStatusAutoClear(t *testing.T) {
 	m := newTestModel(t, "stat")
 

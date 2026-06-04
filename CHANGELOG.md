@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `--new TITLE` / `--append TITLE` with `--content` or stdin: create or append to
   notes from the command line / pipes, no TUI.
+- Live split preview (`^b`): edit raw Markdown on the left with a rendered view
+  updating on the right as you type.
 - `alt+1`…`alt+9` jumps straight to a tab.
 - Tab bar scrolls when tabs overflow the terminal width, with `‹N` / `N›` counters.
 - Empty-note placeholder now hints the core keybindings.

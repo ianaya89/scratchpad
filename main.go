@@ -58,6 +58,11 @@ type model struct {
 	preview      viewport.Model
 	previewReady bool
 
+	splitPreview bool
+	splitVP      viewport.Model
+	splitRender  *glamour.TermRenderer
+	splitRenderW int
+
 	width, height int
 	status        string
 	statusAt      time.Time
@@ -106,6 +111,7 @@ func (m *model) syncToTextarea() {
 	}
 	m.ta.SetValue(m.tabs[m.active].content)
 	m.ta.CursorEnd()
+	m.refreshSplit()
 }
 
 // stash writes the textarea buffer back into the active tab struct.
@@ -242,6 +248,50 @@ func (m model) previewHeight() int {
 	return h
 }
 
+// editorWidth is the textarea width — half the screen when the split preview
+// is on (leaving one column for the divider), full width otherwise.
+func (m model) editorWidth() int {
+	if m.splitPreview && m.width > 30 {
+		return m.width / 2
+	}
+	return m.width
+}
+
+func (m model) splitPaneWidth() int {
+	w := m.width - m.editorWidth() - 1
+	if w < 10 {
+		w = 10
+	}
+	return w
+}
+
+// refreshSplit re-renders the current buffer as markdown into the split pane.
+func (m *model) refreshSplit() {
+	if !m.splitPreview {
+		return
+	}
+	w := m.splitPaneWidth()
+	if m.splitRender == nil || m.splitRenderW != w {
+		if r, err := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithWordWrap(w)); err == nil {
+			m.splitRender = r
+			m.splitRenderW = w
+		}
+	}
+	body := m.ta.Value()
+	if strings.TrimSpace(body) == "" {
+		body = "*(empty — type markdown on the left)*"
+	}
+	out := body
+	if m.splitRender != nil {
+		if s, err := m.splitRender.Render(body); err == nil {
+			out = s
+		}
+	}
+	m.splitVP.Width = w
+	m.splitVP.Height = m.height - 4
+	m.splitVP.SetContent(out)
+}
+
 // autosaveInterval is set from config; 0 disables periodic autosave.
 var autosaveInterval = defaultAutosave
 
@@ -271,6 +321,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.layoutTextarea()
+		m.refreshSplit()
 		return m, nil
 
 	case autosaveMsg:
@@ -357,6 +408,16 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+o":
 		m.openPreview()
 		return m, nil
+	case "ctrl+b":
+		m.splitPreview = !m.splitPreview
+		m.layoutTextarea()
+		m.refreshSplit()
+		if m.splitPreview {
+			m.setStatus("split preview on")
+		} else {
+			m.setStatus("split preview off")
+		}
+		return m, nil
 	case "ctrl+/", "ctrl+_", "f1":
 		m.mode = modeHelp
 		return m, nil
@@ -384,6 +445,7 @@ func (m model) updateEdit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	m.ta, cmd = m.ta.Update(msg)
+	m.refreshSplit()
 	return m, cmd
 }
 
@@ -512,7 +574,7 @@ func (m *model) layoutTextarea() {
 	if m.height == 0 {
 		return
 	}
-	m.ta.SetWidth(m.width)
+	m.ta.SetWidth(m.editorWidth())
 	m.ta.SetHeight(m.height - 4) // tab bar + footer
 	if m.previewReady {
 		m.preview.Width = m.width
