@@ -32,9 +32,17 @@ Use them however you like: one per project, one per context (`work`, `personal`,
     └── 1-feature-brainstorm.md
 ```
 
-## Install
+## Installation
 
-**Install script** (Linux / macOS) — downloads the right binary for your OS/arch:
+| Platform | Recommended |
+| --- | --- |
+| Linux | install script or prebuilt binary |
+| macOS | Homebrew or install script |
+| Any (with Go) | from source |
+
+### Install script (Linux / macOS)
+
+Downloads the right binary for your OS/arch, verifies its checksum, and installs it:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/ianaya89/scratchpad/main/install.sh | sh
@@ -47,15 +55,24 @@ PAD_INSTALL_DIR=/usr/local/bin PAD_VERSION=v0.1.0 \
   sh -c "$(curl -fsSL https://raw.githubusercontent.com/ianaya89/scratchpad/main/install.sh)"
 ```
 
-**Homebrew** (macOS):
+### Homebrew (macOS)
 
 ```sh
 brew install ianaya89/tap/pad
 ```
 
-**Prebuilt binary** — grab a tarball for your OS/arch from the [releases page](https://github.com/ianaya89/scratchpad/releases), extract, and put `pad` on your `PATH`.
+> The Homebrew cask is macOS-only. On Linux, use the install script or a prebuilt binary.
 
-**From source** (requires Go 1.26+):
+### Prebuilt binary
+
+Grab a tarball for your OS/arch from the [releases page](https://github.com/ianaya89/scratchpad/releases), then:
+
+```sh
+tar -xzf pad_*_linux_amd64.tar.gz
+install -m 0755 pad ~/.local/bin/pad
+```
+
+### From source (requires Go 1.26+)
 
 ```sh
 git clone https://github.com/ianaya89/scratchpad ~/pad
