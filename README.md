@@ -34,6 +34,19 @@ Use them however you like: one per project, one per context (`work`, `personal`,
 
 ## Install
 
+**Install script** (Linux / macOS) — downloads the right binary for your OS/arch:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ianaya89/scratchpad/main/install.sh | sh
+```
+
+Installs to `~/.local/bin` by default. Override with env vars:
+
+```sh
+PAD_INSTALL_DIR=/usr/local/bin PAD_VERSION=v0.1.0 \
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/ianaya89/scratchpad/main/install.sh)"
+```
+
 **Homebrew** (macOS):
 
 ```sh
