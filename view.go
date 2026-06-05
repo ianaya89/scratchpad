@@ -157,7 +157,12 @@ func (m model) searchView() string {
 	}
 	b.WriteString("\n")
 	b.WriteString(footerStyle.Render("type to filter · ↑/↓ select · enter open · esc cancel"))
-	box := overlayStyle.Width(48).Render(b.String())
+	return m.centerBox(b.String(), 48)
+}
+
+// centerBox renders content in a bordered box centered on screen.
+func (m model) centerBox(content string, width int) string {
+	box := overlayStyle.Width(width).Render(content)
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
 }
 
@@ -188,8 +193,7 @@ func (m model) helpView() string {
 	}
 	b.WriteString("\n")
 	b.WriteString(footerStyle.Render("switch fallback: alt+h/l, shift+←/→ · move fallback: alt+H/L · any key closes"))
-	box := overlayStyle.Width(48).Render(b.String())
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
+	return m.centerBox(b.String(), 48)
 }
 
 func (m model) overlay(title, body, hint string) string {
@@ -198,8 +202,7 @@ func (m model) overlay(title, body, hint string) string {
 		body,
 		footerStyle.Render(hint),
 	)
-	box := overlayStyle.Width(40).Render(content)
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
+	return m.centerBox(content, 40)
 }
 
 func (m model) pickerView() string {
@@ -220,6 +223,5 @@ func (m model) pickerView() string {
 	}
 	b.WriteString("\n")
 	b.WriteString(footerStyle.Render("↑/↓ move · enter open · n new · esc cancel"))
-	box := overlayStyle.Width(40).Render(b.String())
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
+	return m.centerBox(b.String(), 40)
 }

@@ -15,21 +15,12 @@ func (m *model) openPreview() {
 	if len(m.tabs) > 0 {
 		body = m.tabs[m.active].content
 	}
-	if strings.TrimSpace(body) == "" {
-		body = "*(empty note)*"
-	}
 	w := m.width - 2
 	if w < 20 {
 		w = 20
 	}
-	out := body
-	if r := m.renderer(w); r != nil {
-		if rendered, err := r.Render(body); err == nil {
-			out = rendered
-		}
-	}
 	m.preview = viewport.New(m.width, m.previewHeight())
-	m.preview.SetContent(out)
+	m.preview.SetContent(m.renderMarkdown(body, "*(empty note)*", w))
 	m.previewReady = true
 	m.mode = modePreview
 }
@@ -81,20 +72,24 @@ func (m *model) refreshSplit() {
 		return
 	}
 	w := m.splitPaneWidth()
-	body := m.ta.Value()
-	if strings.TrimSpace(body) == "" {
-		body = "*(empty — type markdown on the left)*"
-	}
-	out := body
-	if r := m.renderer(w); r != nil {
-		if s, err := r.Render(body); err == nil {
-			out = s
-		}
-	}
 	m.splitVP.Width = w
 	m.splitVP.Height = m.height - 4
-	m.splitVP.SetContent(out)
+	m.splitVP.SetContent(m.renderMarkdown(m.ta.Value(), "*(empty — type markdown on the left)*", w))
 	m.splitDirty = false
+}
+
+// renderMarkdown renders body as styled markdown wrapped to w columns, falling
+// back to emptyMsg when the body is blank and to raw text if rendering fails.
+func (m *model) renderMarkdown(body, emptyMsg string, w int) string {
+	if strings.TrimSpace(body) == "" {
+		body = emptyMsg
+	}
+	if r := m.renderer(w); r != nil {
+		if out, err := r.Render(body); err == nil {
+			return out
+		}
+	}
+	return body
 }
 
 // scheduleSplitRender debounces: a render fires ~120ms after the last keystroke,
